@@ -1,0 +1,12 @@
+# Raw data is downloaded from Kaggle, never committed
+data/raw/
+
+# Python
+.venv/
+__pycache__/
+
+# Local settings such as the bucket name; credentials stay in ~/.aws
+.env
+
+# Private notes
+CLAUDE.md
