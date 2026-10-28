@@ -7,6 +7,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from collections import Counter
 from datetime import date
 from urllib.parse import quote
 
@@ -34,6 +35,10 @@ MONTH_FOLDERS = [
 
 # The leading underscore keeps Glue and Athena from treating the state as data.
 STATE_KEY = "_state/vra_ingest.json"
+
+# Calendar months checked on a default run, ending in the current one: the 12 latest
+# published months, where ANAC's corrections usually land, plus the month still to come.
+LOOKBACK_MONTHS = 13
 
 
 def month_url(year: int, month: int) -> str:
@@ -125,6 +130,23 @@ def ingest_month(s3, bucket: str, state: dict, year: int, month: int, today: str
     return "new" if previous is None else "changed"
 
 
+def months_between(start: tuple[int, int], end: tuple[int, int]) -> list[tuple[int, int]]:
+    """Return every (year, month) from start to end, both included."""
+    year, month = start
+    months = []
+    while (year, month) <= end:
+        months.append((year, month))
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return months
+
+
+def lookback_start(today: date) -> tuple[int, int]:
+    """Return the first month of the lookback window that ends in today's month."""
+    # Counting months from year 0 turns "go back N months" into a subtraction.
+    index = today.year * 12 + (today.month - 1) - (LOOKBACK_MONTHS - 1)
+    return index // 12, index % 12 + 1
+
+
 def parse_month(text: str) -> tuple[int, int]:
     """Turn "2026-09" into (2026, 9) for the --month option."""
     try:
@@ -137,27 +159,51 @@ def parse_month(text: str) -> tuple[int, int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--month", type=parse_month, required=True, help="month to load, as YYYY-MM")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=f"Without options, checks the last {LOOKBACK_MONTHS} calendar months.",
+    )
+    which = parser.add_mutually_exclusive_group()
+    which.add_argument("--month", type=parse_month, help="load only this month, as YYYY-MM")
+    which.add_argument(
+        "--since", type=parse_month, help="load every month from YYYY-MM until today (backfill or full check)"
+    )
     args = parser.parse_args()
-    year, month = args.month
+
+    today = date.today()
+    current = (today.year, today.month)
+    if args.month:
+        months = [args.month]
+    elif args.since:
+        months = months_between(args.since, current)
+    else:
+        months = months_between(lookback_start(today), current)
 
     # load_dotenv must run before boto3.client so that AWS_PROFILE from .env is used.
     load_dotenv()
     bucket = os.environ["LAKE_BUCKET"]
     s3 = boto3.client("s3")
 
+    results = Counter()
     try:
         state = read_state(s3, bucket)
-        result = ingest_month(s3, bucket, state, year, month, date.today().isoformat())
-        # The state is saved only after the file is in S3: a crash in between just repeats the month.
+        for year, month in months:
+            result = ingest_month(s3, bucket, state, year, month, today.isoformat())
+            results[result] += 1
+            print(f"{year}-{month:02d}: {result}")
+            if result in ("new", "changed"):
+                # Saving right after each stored file means a failure later in the run cannot
+                # leave a stored month out of the state, which would store it again tomorrow
+                # under a new ingestion_date.
+                write_state(s3, bucket, state)
+        # One last save records last_checked for the unchanged months.
         write_state(s3, bucket, state)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
         print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
         return 1
 
-    print(f"{year}-{month:02d}: {result}")
+    print("summary:", ", ".join(f"{count} {result}" for result, count in results.most_common()) or "nothing to do")
     return 0
 
 
