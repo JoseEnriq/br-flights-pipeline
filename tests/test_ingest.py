@@ -1,8 +1,18 @@
 import argparse
+from datetime import date
 
 import pytest
 
-from ingest import count_rows, data_hash, month_url, parse_month, raw_key
+from ingest import (
+    LOOKBACK_MONTHS,
+    count_rows,
+    data_hash,
+    lookback_start,
+    month_url,
+    months_between,
+    parse_month,
+    raw_key,
+)
 
 HEADER = b'"ICAO Empresa A\xc3\xa9rea";"N\xc3\xbamero Voo";"Situa\xc3\xa7\xc3\xa3o Voo"\r\n'
 FLIGHTS = b'"GLO";"1234";"REALIZADO"\r\n"AZU";"4321";"CANCELADO"\r\n'
@@ -57,3 +67,28 @@ def test_parse_month_reads_year_and_month():
 def test_parse_month_rejects_bad_input(text):
     with pytest.raises(argparse.ArgumentTypeError):
         parse_month(text)
+
+
+def test_months_between_crosses_the_year():
+    assert months_between((2025, 11), (2026, 2)) == [(2025, 11), (2025, 12), (2026, 1), (2026, 2)]
+
+
+def test_months_between_is_empty_when_start_is_after_end():
+    assert months_between((2026, 11), (2026, 10)) == []
+
+
+@pytest.mark.parametrize(
+    ("today", "expected"),
+    [
+        (date(2026, 10, 28), (2025, 10)),
+        (date(2026, 1, 15), (2025, 1)),
+        (date(2026, 12, 31), (2025, 12)),
+    ],
+)
+def test_lookback_start(today, expected):
+    assert lookback_start(today) == expected
+
+
+def test_lookback_window_has_the_configured_length():
+    today = date(2026, 10, 28)
+    assert len(months_between(lookback_start(today), (2026, 10))) == LOOKBACK_MONTHS
