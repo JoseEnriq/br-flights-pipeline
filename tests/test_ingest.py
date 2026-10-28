@@ -1,0 +1,59 @@
+import argparse
+
+import pytest
+
+from ingest import count_rows, data_hash, month_url, parse_month, raw_key
+
+HEADER = b'"ICAO Empresa A\xc3\xa9rea";"N\xc3\xbamero Voo";"Situa\xc3\xa7\xc3\xa3o Voo"\r\n'
+FLIGHTS = b'"GLO";"1234";"REALIZADO"\r\n"AZU";"4321";"CANCELADO"\r\n'
+
+
+def vra_file(updated_on: str, flights: bytes = FLIGHTS) -> bytes:
+    """Build a small file shaped like the ANAC ones: BOM, metadata line, header, flights."""
+    return b"\xef\xbb\xbf" + f"Atualizado em: {updated_on}\r\n".encode() + HEADER + flights
+
+
+def test_month_url_pads_the_folder_but_not_the_file_name():
+    url = month_url(2026, 9)
+    assert url.endswith("/2026/09%20-%20Setembro/VRA_20269.csv")
+
+
+def test_month_url_encodes_accents_and_keeps_the_scheme():
+    url = month_url(2024, 3)
+    assert url.startswith("https://sistemas.anac.gov.br/")
+    assert "/2024/03%20-%20Mar%C3%A7o/VRA_20243.csv" in url
+    assert " " not in url
+
+
+def test_data_hash_ignores_the_updated_on_line():
+    assert data_hash(vra_file("2026-10-28")) == data_hash(vra_file("2026-10-29"))
+
+
+def test_data_hash_changes_when_a_flight_changes():
+    edited = FLIGHTS.replace(b"REALIZADO", b"CANCELADO")
+    assert data_hash(vra_file("2026-10-28")) != data_hash(vra_file("2026-10-28", edited))
+
+
+def test_data_hash_changes_when_the_header_changes():
+    original = vra_file("2026-10-28")
+    renamed = original.replace(b"Situa\xc3\xa7\xc3\xa3o Voo", b"Status")
+    assert data_hash(original) != data_hash(renamed)
+
+
+def test_count_rows_skips_the_metadata_line_and_the_header():
+    assert count_rows(vra_file("2026-10-28")) == 2
+
+
+def test_raw_key_pads_the_month_partition():
+    key = raw_key(2026, 9, "2026-10-28")
+    assert key == "raw/vra/month=2026-09/ingestion_date=2026-10-28/VRA_20269.csv"
+
+
+def test_parse_month_reads_year_and_month():
+    assert parse_month("2026-09") == (2026, 9)
+
+
+@pytest.mark.parametrize("text", ["2026-13", "2026-00", "2026/09", "setembro", "2026-09-01"])
+def test_parse_month_rejects_bad_input(text):
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_month(text)
