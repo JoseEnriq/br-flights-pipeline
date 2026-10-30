@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_flights
+    description: >
+      One row per flight leg from the latest ingested version of each month,
+      with typed columns, real nulls and fully repeated rows removed. Times
+      are kept as published by ANAC, without time zone conversion.
+    columns:
+      - name: airline_icao
+        description: ICAO code of the airline (ICAO Empresa Aérea).
+        data_tests:
+          - not_null
+      - name: flight_number
+        description: Flight number; unscheduled flights mostly start with Z (Número Voo).
+        data_tests:
+          - not_null
+      - name: authorization_code
+        description: Authorization digit of the leg (Código Autorização (DI)).
+        data_tests:
+          - not_null
+      - name: line_type
+        description: >
+          Route type (Código Tipo Linha). Assumed meaning, since ANAC publishes
+          no dictionary: N domestic, C domestic cargo, I international,
+          G international cargo; L shows up in 2018 and 2019.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['N', 'C', 'I', 'G', 'L']
+      - name: origin_icao
+        description: ICAO code of the origin airport (ICAO Aeródromo Origem).
+        data_tests:
+          - not_null
+      - name: destination_icao
+        description: ICAO code of the destination airport (ICAO Aeródromo Destino).
+        data_tests:
+          - not_null
+      - name: scheduled_departure
+        description: Scheduled departure (Partida Prevista); empty for flights outside the schedule.
+      - name: actual_departure
+        description: Actual departure (Partida Real); empty for cancelled flights.
+      - name: scheduled_arrival
+        description: Scheduled arrival (Chegada Prevista).
+      - name: actual_arrival
+        description: Actual arrival (Chegada Real).
+      - name: flight_status
+        description: Flight status as published (Situação Voo).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['REALIZADO', 'CANCELADO']
+      - name: justification_code
+        description: Delay or cancellation reason (Código Justificativa); empty since 2021.
+      - name: ingestion_date
+        description: Day the source version of this month was loaded into the raw layer.
+        data_tests:
+          - not_null
+      - name: month
+        description: Month of the published ANAC file, YYYY-MM. Partition column.
+        data_tests:
+          - not_null
