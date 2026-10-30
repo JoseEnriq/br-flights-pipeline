@@ -1,59 +1,59 @@
-# Decisões
+# Decisions
 
-Cada decisão do projeto, com o motivo e a alternativa descartada. Organizado por camada do pipeline.
+Every decision in the project, with the reason behind it and the alternative it beat. Grouped by pipeline layer.
 
-## Fonte
+## Source
 
-- **VRA (Voo Regular Ativo) da ANAC.** Todos os voos regulares do Brasil, um CSV por mês desde 2000, publicado cerca de quatro semanas depois do fim do mês. Foi escolhido por ser uma fonte viva: sai um mês novo todo mês e os meses recentes são regerados todo dia, o que exige carga incremental de verdade. Alternativas comparadas: cota parlamentar da Câmara (modelagem mais rica, mas com CPF de fornecedores e arquivos anuais), preços da ANP (nomes de arquivo inconsistentes), CNPJ da Receita (fotos completas pesadas, sem incremental) e NYC Taxi (muito usado em portfólio).
-- **Sem dicionário de dados oficial.** A ANAC não publica o significado dos códigos de tipo de linha e de autorização. As suposições estão nas descrições das colunas em `dbt/models/staging/_stg_models.yml`.
-- **Os dados não são publicados.** O bucket é privado e nenhum arquivo da ANAC entra no Git; o repositório guarda o código e números agregados, sempre citando a fonte.
+- **ANAC's VRA (Voo Regular Ativo).** Every scheduled flight in Brazil, one CSV per month since 2000, published about four weeks after the month ends. Chosen because it is a live source: a new month comes out every month and recent months are regenerated every day, which calls for a real incremental load. Alternatives compared: the Chamber of Deputies' expense quota (richer modeling, but it carries suppliers' CPF numbers and ships yearly files), ANP fuel prices (inconsistent file names), Receita Federal's CNPJ registry (heavy full snapshots, nothing incremental) and NYC Taxi (very common in portfolios).
+- **No official data dictionary.** ANAC does not publish what the route type and authorization codes mean. The assumptions are in the column descriptions in `dbt/models/staging/_stg_models.yml`.
+- **The data is not republished.** The bucket is private and no ANAC file goes into Git; the repository holds the code and aggregated numbers, always crediting the source.
 
-## Ingestão (raw)
+## Ingestion (raw)
 
-- **ELT: a raw guarda o arquivo como veio**, com BOM, linha de metadado e nulos escritos como texto. A limpeza fica no dbt, e um erro de transformação se corrige refazendo a partir da raw.
-- **Mudança detectada por conteúdo, não por data.** A ANAC regrava a linha `Atualizado em: <data>` todo dia, mesmo sem mudar nenhum voo. O hash SHA-256 ignora essa linha, então só uma mudança real gera versão nova.
-- **Uma pasta por versão** (`raw/vra/month=AAAA-MM/ingestion_date=AAAA-MM-DD/`), sem sobrescrever e sem versionamento do S3. Assim dá para comparar duas versões do mesmo mês no Athena.
-- **Partição pelo mês do arquivo publicado**, não pela data do voo: cada arquivo traz alguns voos dos primeiros dias do mês seguinte, mas os meses não se sobrepõem.
-- **Estado em JSON no próprio bucket** (`_state/vra_ingest.json`), gravado depois de cada arquivo. DynamoDB foi descartado: são algumas dezenas de meses e um único processo escrevendo.
-- **Janela de conferência de 13 meses** (o mês atual e os 12 anteriores) em toda execução, e o histórico inteiro com `--since`. Baixar todos os meses todo dia seria desperdício, porque os antigos quase nunca mudam.
+- **ELT: the raw layer keeps the file exactly as published**, with the BOM, the metadata line and nulls written as text. Cleaning happens in dbt, and a transformation bug is fixed by rebuilding from raw.
+- **Changes are detected by content, not by date.** ANAC rewrites the `Atualizado em: <date>` line every day, even when no flight changes. The SHA-256 hash skips that line, so only a real change creates a new version.
+- **One folder per version** (`raw/vra/month=YYYY-MM/ingestion_date=YYYY-MM-DD/`), with no overwrites and no S3 versioning. This makes it possible to compare two versions of the same month in Athena.
+- **Partitioned by the month of the published file**, not by flight date: each file carries a few flights from the first days of the next month, but months never overlap.
+- **State as JSON in the bucket itself** (`_state/vra_ingest.json`), written after each file. DynamoDB was ruled out: a few dozen months and a single writer.
+- **A 13-month lookback window** (the current month and the 12 before it) on every run, and the full history with `--since`. Downloading every month every day would be waste, since old months almost never change.
 
-## Catálogo da raw (Athena)
+## Raw catalog (Athena)
 
-- **Tabela declarada à mão, sem Glue Crawler.** O crawler adivinha o formato olhando os arquivos e escreve a tabela no catálogo sozinho; não move nem transforma dados, só substitui o `CREATE TABLE` e o `MSCK REPAIR`. Num arquivo fora do padrão como o da ANAC (BOM, linha de metadado antes do cabeçalho, separador `;`), ele erra, e ainda alteraria a tabela sem revisão. A tabela escrita à mão é exata, gratuita e versionada. Detalhes em `athena/README.md`.
-- **Experimento que confirmou a decisão** (2026-10-30, banco de teste apagado depois): dois crawlers com a mesma role, um sobre setembro de 2026 na raw e outro sobre o staging em Parquet.
+- **Table declared by hand, no Glue Crawler.** A crawler guesses the format by looking at the files and writes the table to the catalog on its own; it neither moves nor transforms data, it only replaces `CREATE TABLE` and `MSCK REPAIR`. On a non-standard file like ANAC's (BOM, metadata line before the header, `;` separator) it gets it wrong, and it would also change the table without review. A hand-written table is exact, free and versioned. Details in `athena/README.md`.
+- **Experiment that confirmed the decision** (2026-10-30, test database deleted afterwards): two crawlers sharing one role, one over September 2026 in raw and one over the Parquet staging table.
 
-  | | Crawler no CSV da raw | Crawler no Parquet do staging |
+  | | Crawler on the raw CSV | Crawler on the staging Parquet |
   |---|---|---|
-  | Formato reconhecido | `UNKNOWN` | `parquet` |
-  | Colunas | nenhuma | as 13, com as datas como `timestamp` |
-  | Consulta no Athena | falha com `HIVE_UNSUPPORTED_FORMAT` | igual à tabela do dbt (1.021.748 linhas) |
+  | Format detected | `UNKNOWN` | `parquet` |
+  | Columns | none | all 13, with dates as `timestamp` |
+  | Athena query | fails with `HIVE_UNSUPPORTED_FORMAT` | matches the dbt table (1,021,748 rows) |
 
-  O resultado no CSV foi pior do que o esperado: em vez de colunas erradas, nenhuma. O classificador de CSV do Glue até testa o `;`, mas exige um arquivo com pelo menos duas colunas em todas as linhas, e a primeira linha da ANAC (`Atualizado em: ...`) tem uma só; a causa mais provável é essa, somada ao BOM. Um classificador personalizado define separador e cabeçalho, mas não pula a linha de metadado. O Parquet traz o esquema dentro do arquivo, então o crawler só o lê. Ele é uma boa escolha para formatos assim, para CSV e JSON bem comportados e para lakes com muitas tabelas ou esquemas que mudam com frequência; não para arquivos fora do padrão.
-- **Todas as colunas como texto na raw.** O formato das datas e dos nulos muda entre épocas da fonte; os tipos ficam no staging, onde cada regra é testada.
-- **Colunas em inglês, valores como vieram.** Nomes sem acento nem espaço evitam aspas em todo SQL; o nome original da ANAC fica no comentário de cada coluna. Situação, aeroportos e companhias continuam como a ANAC publica.
-- **Workgroup `br-flights` com limite de 1 GB por consulta** e resultados em `_athena-results/`, apagados em 7 dias por uma regra de ciclo de vida. Resultados e dados no mesmo bucket, com SSE-S3, é uma simplificação: empresas costumam separar o bucket de resultados e usar SSE-KMS.
-- **O workgroup não força as configurações do cliente.** Com *Override client-side settings* ligado, o Athena ignora o `external_location` dos modelos do dbt e grava as tabelas dentro de `_athena-results/`, onde elas seriam apagadas em 7 dias. Isso aconteceu na primeira execução do staging e foi corrigido desligando a opção.
+  The CSV result was worse than expected: no columns at all instead of wrong ones. Glue's CSV classifier does try `;`, but it requires at least two columns on every line, and ANAC's first line (`Atualizado em: ...`) has only one; that, plus the BOM, is the most likely cause. A custom classifier can set the separator and the header, but it cannot skip the metadata line. Parquet carries its schema inside the file, so the crawler simply reads it. Crawlers are a good fit for formats like that, for well-behaved CSV and JSON, and for lakes with many tables or frequently changing schemas; not for non-standard files.
+- **Every raw column is a string.** Date and null formats change between eras of the source; types belong to staging, where each rule is tested.
+- **English column names, values as published.** Names without accents or spaces avoid quoting in every query; each column comment keeps the original ANAC name. Flight status, airports and airlines stay as ANAC publishes them.
+- **Workgroup `br-flights` with a 1 GB per-query limit** and results in `_athena-results/`, deleted after 7 days by a lifecycle rule. Keeping results and data in the same bucket, with SSE-S3, is a simplification: companies usually keep results in a separate bucket and use SSE-KMS.
+- **The workgroup does not enforce its settings on clients.** With *Override client-side settings* on, Athena ignores the dbt models' `external_location` and writes the tables inside `_athena-results/`, where they would be deleted after 7 days. This happened on the first staging run and was fixed by turning the option off.
 
 ## Staging (dbt + Athena)
 
-- **dbt Core v1 com o adaptador `dbt-athena`.** O dbt v2 (2.0.9) recusa o Athena: `unknown variant athena, expected one of redshift, snowflake, postgres, bigquery, trino, ...`. O adaptador `trino` não serve, porque o Athena só é acessado pela API da AWS.
-- **Python 3.12.** O `dbt-athena` 1.11.1 exige `mmh3<4.2`, e o `mmh3` 4.1.0 não tem pacote pronto para Windows no Python 3.13; a instalação pediria um compilador C++. O `dbt-core` fica fixado na versão estável (1.12.6): sem isso, o pip escolhe uma beta, porque o `dbt-athena` aceita versões candidatas.
-- **Parquet com compressão ZSTD.** O Athena cobra pelos bytes lidos já comprimidos; o ZSTD comprime mais que o Snappy, que é o padrão mais comum, com leitura igualmente rápida.
-- **Tabela Hive incremental com `insert_overwrite`, particionada por mês.** A unidade de mudança da fonte é o mês inteiro, e essa estratégia substitui a partição do mês sem misturar versões. Iceberg foi descartado por enquanto: no `dbt-athena`, ele só aceita `append` e `merge`, que pedem uma chave única que a fonte não garante.
-- **Só a versão mais recente de cada mês, e só quando ela ainda não está no staging.** As versões a processar vêm do catálogo (`raw_vra$partitions`, que não lê dados) e entram no SQL como filtros literais, porque o Athena não poda partições a partir de uma subconsulta. Quando nada mudou, o filtro vira `false`: a segunda execução seguida leu 1,7 KB de metadados e não gravou nada.
-- **`cast` em vez de `try_cast` nas datas.** Uma data inválida deve quebrar o modelo, não virar nulo em silêncio. Fevereiro e março de 2020 estão corrompidos na fonte e vão precisar de tratamento explícito quando o histórico for carregado.
-- **Linhas repetidas por inteiro saem no staging** (`select distinct`): 18 em 1.021.766 voos nos 12 primeiros meses.
-- **A chave do voo é testada com aviso, não com erro.** Companhia, número e partida prevista (ou a real, para voos fora da grade) se repetem em 122 casos com horários reais diferentes, como o ACA 0090 de 27/10/2025, registrado saindo à 01:29 e às 23:08. Escolher a linha certa é regra de negócio e fica para o modelo de voos.
-- **Voos com origem igual ao destino** (4.133, todos realizados) ficam no staging; o significado é decidido no modelo de voos.
+- **dbt Core v1 with the `dbt-athena` adapter.** dbt v2 (2.0.9) rejects Athena: `unknown variant athena, expected one of redshift, snowflake, postgres, bigquery, trino, ...`. The `trino` adapter does not work either, because Athena is only reachable through the AWS API.
+- **Python 3.12.** `dbt-athena` 1.11.1 requires `mmh3<4.2`, and `mmh3` 4.1.0 has no prebuilt Windows package for Python 3.13, so installing it would need a C++ compiler. `dbt-core` is pinned to the stable release (1.12.6): without the pin, pip picks a beta, because `dbt-athena` accepts release candidates.
+- **Parquet with ZSTD compression.** Athena charges for compressed bytes read; ZSTD compresses better than Snappy, the most common default, and reads just as fast.
+- **Incremental Hive table with `insert_overwrite`, partitioned by month.** The source changes a whole month at a time, and this strategy replaces the month's partition without mixing versions. Iceberg was ruled out for now: in `dbt-athena` it only supports `append` and `merge`, which need a unique key the source does not guarantee.
+- **Only the latest version of each month, and only when it is not in staging yet.** The versions to process come from the catalog (`raw_vra$partitions`, which reads no data) and enter the SQL as literal filters, because Athena does not prune partitions through a subquery. When nothing changed, the filter becomes `false`: a second run in a row read 1.7 KB of metadata and wrote nothing.
+- **`cast` instead of `try_cast` for dates.** An invalid date should break the model, not silently become null. February and March 2020 are corrupted at the source and will need explicit handling when the history is loaded.
+- **Fully repeated rows are removed in staging** (`select distinct`): 18 out of 1,021,766 flights in the first 12 months.
+- **The flight key is tested with a warning, not an error.** Airline, number and scheduled departure (or the actual one, for unscheduled flights) repeat in 122 cases with different actual times, such as ACA 0090 on 2025-10-27, recorded departing at 01:29 and at 23:08. Choosing the right row is a business rule and belongs to the flight model.
+- **Flights whose origin equals their destination** (4,133, all completed) stay in staging; what they mean is decided in the flight model.
 
-### CSV × Parquet
+### CSV vs. Parquet
 
-Os mesmos 12 meses (outubro de 2025 a setembro de 2026), medidos em 2026-10-30 com as consultas de `athena/queries/csv_vs_parquet.sql`:
+The same 12 months (October 2025 to September 2026), measured on 2026-10-30 with the queries in `athena/queries/csv_vs_parquet.sql`:
 
 | | Raw (CSV) | Staging (Parquet) |
 |---|---|---|
-| Tamanho no S3 | 144,8 MB | 13,2 MB |
-| Situação dos voos de setembro de 2026 | 12,1 MB lidos | 3,7 KB lidos |
-| Voos que decolaram, todos os meses | 144,8 MB lidos | 5,0 MB lidos |
+| Size in S3 | 144.8 MB | 13.2 MB |
+| Flight status for September 2026 | 12.1 MB scanned | 3.7 KB scanned |
+| Flights that departed, all months | 144.8 MB scanned | 5.0 MB scanned |
 
-O Parquet lê só as colunas da consulta, comprime cada coluna separadamente (a situação do voo tem dois valores em 85 mil linhas) e guarda as datas como números em vez de texto.
+Parquet reads only the columns a query uses, compresses each column on its own (flight status has two values across 85 thousand rows) and stores dates as numbers instead of text.
