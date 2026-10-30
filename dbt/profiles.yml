@@ -7,9 +7,9 @@ br_flights:
       database: awsdatacatalog
       schema: br_flights
       work_group: br-flights
-      # The workgroup overrides client-side settings, so query results always
-      # land in its own location; this value only fills a required field.
-      # It also means tables need an explicit external_location, otherwise
-      # Athena writes them under _athena-results/, which expires in 7 days.
+      # Query results share the workgroup's prefix, which expires in 7 days.
+      # The workgroup must not override client-side settings: when it does,
+      # Athena ignores each model's external_location and writes the tables
+      # under this expiring prefix too.
       s3_staging_dir: "s3://{{ env_var('LAKE_BUCKET') }}/_athena-results/"
       threads: 4
