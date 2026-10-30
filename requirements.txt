@@ -1,2 +1,4 @@
 boto3==1.43.119
+dbt-athena==1.11.1
+dbt-core==1.12.6
 python-dotenv==1.2.4

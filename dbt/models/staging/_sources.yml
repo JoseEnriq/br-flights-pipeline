@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: br_flights
+    description: >
+      ANAC VRA files exactly as published, loaded by pipeline/ingest.py and
+      declared in athena/raw_vra.sql. Every column is text.
+    tables:
+      - name: raw_vra
+        description: >
+          One row per flight leg. Partitioned by the month of the published
+          file and by the day each new version of that month was loaded.

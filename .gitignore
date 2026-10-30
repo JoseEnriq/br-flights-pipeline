@@ -5,6 +5,12 @@ data/raw/
 .venv/
 __pycache__/
 
+# dbt build output
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
 # Local settings such as the bucket name; credentials stay in ~/.aws
 .env
 

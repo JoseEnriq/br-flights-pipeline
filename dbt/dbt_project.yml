@@ -1,0 +1,14 @@
+name: br_flights
+version: "1.0.0"
+profile: br_flights
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  br_flights:
+    staging:
+      # Glue database br_flights_processed, files under processed/ in the lake
+      +schema: processed

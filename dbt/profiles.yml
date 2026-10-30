@@ -1,0 +1,15 @@
+br_flights:
+  target: dev
+  outputs:
+    dev:
+      type: athena
+      region_name: us-east-1
+      database: awsdatacatalog
+      schema: br_flights
+      work_group: br-flights
+      # The workgroup overrides client-side settings, so query results always
+      # land in its own location; this value only fills a required field.
+      # It also means tables need an explicit external_location, otherwise
+      # Athena writes them under _athena-results/, which expires in 7 days.
+      s3_staging_dir: "s3://{{ env_var('LAKE_BUCKET') }}/_athena-results/"
+      threads: 4
