@@ -62,3 +62,31 @@ models:
         description: Month of the published ANAC file, YYYY-MM. Partition column.
         data_tests:
           - not_null
+
+  - name: stg_route_stats
+    description: >
+      ANAC's air transport statistics from the latest ingested version, one row
+      per airline, route, month, nature and flight group, with the columns that
+      name airlines and airports. Empty text becomes null.
+    columns:
+      - name: airline_icao
+        description: ICAO code of the airline, the same code the VRA uses (EMPRESA_SIGLA).
+        data_tests:
+          - not_null
+      - name: airline_name
+        description: Airline name as registered with ANAC (EMPRESA_NOME).
+      - name: airline_nationality
+        description: BRASILEIRA or ESTRANGEIRA (EMPRESA_NACIONALIDADE).
+      - name: report_year
+        data_tests:
+          - not_null
+      - name: report_month
+        data_tests:
+          - not_null
+      - name: origin_icao
+        description: Origin airport; empty in a few rows from the early 2000s (AEROPORTO_DE_ORIGEM_SIGLA).
+      - name: origin_city
+        description: City the origin airport serves, which ANAC publishes as the airport name.
+      - name: ingestion_date
+        data_tests:
+          - not_null
