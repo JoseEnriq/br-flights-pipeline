@@ -12,3 +12,11 @@ models:
     staging:
       # Glue database br_flights_processed, files under processed/ in the lake
       +schema: processed
+    marts:
+      # Glue database br_flights_curated, files under curated/ in the lake
+      +schema: curated
+
+vars:
+  # the backfill starts in 2019; Athena caps sequence() at 10,000 days
+  calendar_start: "2019-01-01"
+  calendar_end: "2030-12-31"
