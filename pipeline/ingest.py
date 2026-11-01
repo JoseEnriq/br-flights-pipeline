@@ -76,21 +76,21 @@ def count_rows(content: bytes) -> int:
     return len(content.splitlines()) - 2
 
 
-def read_state(s3, bucket: str) -> dict:
+def read_state(s3, bucket: str, key: str = STATE_KEY) -> dict:
     """Return the ingest state stored in the bucket, or an empty one on the first run."""
     try:
-        response = s3.get_object(Bucket=bucket, Key=STATE_KEY)
+        response = s3.get_object(Bucket=bucket, Key=key)
     except s3.exceptions.NoSuchKey:
         return {}
     with response["Body"] as body:
         return json.loads(body.read())
 
 
-def write_state(s3, bucket: str, state: dict) -> None:
+def write_state(s3, bucket: str, state: dict, key: str = STATE_KEY) -> None:
     """Save the ingest state to the bucket, replacing the previous one."""
     s3.put_object(
         Bucket=bucket,
-        Key=STATE_KEY,
+        Key=key,
         Body=json.dumps(state, indent=2, sort_keys=True),
         ContentType="application/json",
     )
