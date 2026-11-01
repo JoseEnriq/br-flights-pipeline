@@ -31,15 +31,27 @@ models:
       - name: airline_icao
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airline')
+                field: airline_icao
       - name: flight_number
         data_tests:
           - not_null
       - name: origin_icao
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airport')
+                field: airport_icao
       - name: destination_icao
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airport')
+                field: airport_icao
       - name: flight_date
         description: Date of the scheduled departure, or of the actual one for unscheduled flights.
         data_tests:
@@ -75,3 +87,37 @@ models:
         description: Month of the published ANAC file, YYYY-MM. Partition column.
         data_tests:
           - not_null
+
+  - name: dim_airline
+    description: >
+      One row per airline, named by the latest month it appears in ANAC's
+      statistics. Airlines that fly but are missing there keep an empty name.
+    columns:
+      - name: airline_icao
+        data_tests:
+          - unique
+          - not_null
+      - name: airline_name
+      - name: airline_nationality
+        description: BRASILEIRA or ESTRANGEIRA, as ANAC publishes it.
+      - name: is_brazilian
+
+  - name: dim_airport
+    description: >
+      One row per airport, described by the latest month it appears in ANAC's
+      statistics. Airports that appear in flights but are missing there keep
+      empty attributes.
+    columns:
+      - name: airport_icao
+        data_tests:
+          - unique
+          - not_null
+      - name: city
+        description: City the airport serves; ANAC publishes it as the airport name.
+      - name: state
+        description: Brazilian state (UF); empty abroad.
+      - name: region
+        description: Brazilian region; empty abroad.
+      - name: country
+      - name: continent
+      - name: is_brazilian
