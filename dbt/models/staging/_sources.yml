@@ -11,3 +11,9 @@ sources:
         description: >
           One row per flight leg. Partitioned by the month of the published
           file and by the day each new version of that month was loaded.
+      - name: raw_anac_stats
+        description: >
+          ANAC's air transport statistics, one row per airline, route, month,
+          nature and flight group since 2000. Loaded by pipeline/ingest_stats.py,
+          declared in athena/raw_anac_stats.sql and partitioned by the day each
+          new version was loaded.
