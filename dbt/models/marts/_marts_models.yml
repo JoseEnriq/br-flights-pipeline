@@ -1,0 +1,77 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: One row per calendar day, from the start of the backfill to 2030.
+    columns:
+      - name: date_day
+        description: The day.
+        data_tests:
+          - unique
+          - not_null
+      - name: year_month
+        description: Year and month as YYYY-MM.
+      - name: day_of_week
+        description: ISO day of the week, Monday 1 to Sunday 7.
+      - name: is_weekend
+        description: Saturday or Sunday.
+
+  - name: fct_flights
+    description: >
+      One row per flight: airline, flight number, origin and scheduled
+      departure, or the actual departure for flights outside the schedule.
+      Rows that ANAC repeats by pairing every scheduled time with every actual
+      time are reduced to the closest pair.
+    columns:
+      - name: flight_id
+        description: Hash of the flight key.
+        data_tests:
+          - unique
+          - not_null
+      - name: airline_icao
+        data_tests:
+          - not_null
+      - name: flight_number
+        data_tests:
+          - not_null
+      - name: origin_icao
+        data_tests:
+          - not_null
+      - name: destination_icao
+        data_tests:
+          - not_null
+      - name: flight_date
+        description: Date of the scheduled departure, or of the actual one for unscheduled flights.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: departure_delay_minutes
+        description: Actual minus scheduled departure; empty without both times.
+      - name: arrival_delay_minutes
+        description: Actual minus scheduled arrival; empty without both times.
+      - name: is_scheduled
+        description: The flight was in the schedule (has a scheduled departure).
+        data_tests:
+          - not_null
+      - name: is_cancelled
+        data_tests:
+          - not_null
+      - name: is_return_to_origin
+        description: >
+          Origin and destination are the same airport: the aircraft took off
+          and came back. Almost all carry authorization code 3.
+        data_tests:
+          - not_null
+      - name: is_delayed_30
+        description: >
+          Arrived more than 30 minutes after the scheduled arrival, ANAC's
+          definition. Only for scheduled flights that operated, empty otherwise.
+      - name: is_delayed_60
+        description: Same as is_delayed_30, with 60 minutes.
+      - name: month
+        description: Month of the published ANAC file, YYYY-MM. Partition column.
+        data_tests:
+          - not_null
