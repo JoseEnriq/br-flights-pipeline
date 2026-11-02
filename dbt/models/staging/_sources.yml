@@ -17,3 +17,9 @@ sources:
           nature and flight group since 2000. Loaded by pipeline/ingest_stats.py,
           declared in athena/raw_anac_stats.sql and partitioned by the day each
           new version was loaded.
+      - name: raw_anac_punctuality
+        description: >
+          ANAC's monthly delay and cancellation percentages (Annex I), one row
+          per airline, flight number and route, codeshare flight numbers
+          included. Loaded by pipeline/ingest_punctuality.py, declared in
+          athena/raw_anac_punctuality.sql, partitioned like raw_vra.

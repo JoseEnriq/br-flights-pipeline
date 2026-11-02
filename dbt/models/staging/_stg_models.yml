@@ -90,3 +90,31 @@ models:
       - name: ingestion_date
         data_tests:
           - not_null
+
+  - name: stg_punctuality
+    description: >
+      ANAC's published delay and cancellation percentages (Annex I) from the
+      latest version of each month, one row per airline, flight number and
+      route. Codeshare flight numbers are included, so a route can appear
+      several times with the same flights.
+    columns:
+      - name: airline_icao
+        description: Code before " - " in Empresa_Aerea.
+        data_tests:
+          - not_null
+      - name: flight_number
+        data_tests:
+          - not_null
+      - name: scheduled_flights
+        description: Scheduled legs in the month (Etapas_Previstas).
+        data_tests:
+          - not_null
+      - name: pct_cancelled
+        description: Cancelled over scheduled, in percent, rounded to 2 decimals.
+      - name: pct_delayed_30
+        description: Arrived more than 30 minutes late over scheduled flights that operated, in percent.
+      - name: pct_delayed_60
+        description: Same as pct_delayed_30, with 60 minutes.
+      - name: month
+        data_tests:
+          - not_null
