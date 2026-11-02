@@ -121,3 +121,44 @@ models:
       - name: country
       - name: continent
       - name: is_brazilian
+
+  - name: agg_route_punctuality
+    description: >
+      Punctuality by month, airline and route, for scheduled flights, with the
+      names from the dimensions. Rates follow ANAC: cancellations over
+      scheduled flights, delays over the scheduled flights that operated.
+      Keep the counts to add months or routes together; never average rates.
+    columns:
+      - name: scheduled_flights
+        data_tests:
+          - not_null
+      - name: cancellation_rate
+        description: cancelled_flights / scheduled_flights, from 0 to 1.
+      - name: delay_30_rate
+        description: delayed_30_flights / operated_flights, from 0 to 1; empty when nothing operated.
+      - name: median_arrival_delay_minutes
+        description: Approximate median of the arrival delay of the flights that operated.
+      - name: month
+        data_tests:
+          - not_null
+
+  - name: audit_anac_reconciliation
+    description: >
+      Month by month comparison with ANAC's published percentages (Annex I),
+      by airline, flight number and route. Codeshare flight numbers exist only
+      on ANAC's side and stay out of the match rate.
+    columns:
+      - name: month
+        data_tests:
+          - unique
+          - not_null
+      - name: flight_routes_in_both
+        description: Airline, flight number and route combinations present on both sides.
+      - name: flight_routes_matching
+        description: Same scheduled count and every percentage within 0.01 point.
+      - name: match_rate
+        description: flight_routes_matching / flight_routes_in_both.
+      - name: flight_routes_only_anac
+        description: Mostly codeshare flight numbers, which the flight files do not carry.
+      - name: flight_routes_only_ours
+        description: Flights in ANAC's flight files that its percentages leave out.
