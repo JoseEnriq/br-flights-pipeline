@@ -49,9 +49,8 @@ def month_url(year: int, month: int) -> str:
     return quote(f"{BASE_URL}/{year}/{folder}/{file_name}", safe=":/")
 
 
-def download_month(year: int, month: int) -> bytes | None:
+def download(url: str) -> bytes | None:
     """Return the raw bytes of one month's file, or None if ANAC has not published it yet."""
-    url = month_url(year, month)
     try:
         with urllib.request.urlopen(url) as response:
             return response.read()
@@ -101,12 +100,15 @@ def raw_key(year: int, month: int, ingestion_date: str) -> str:
     return f"raw/vra/month={year}-{month:02d}/ingestion_date={ingestion_date}/VRA_{year}{month}.csv"
 
 
-def ingest_month(s3, bucket: str, state: dict, year: int, month: int, today: str) -> str:
+def ingest_month(
+    s3, bucket: str, state: dict, year: int, month: int, today: str, url_for=month_url, key_for=raw_key
+) -> str:
     """Store one month in the raw layer if it is new or changed, and update the state in place.
 
+    url_for and key_for default to the VRA files; other monthly ANAC sources pass their own.
     Returns what happened: "not published", "unchanged", "new" or "changed".
     """
-    content = download_month(year, month)
+    content = download(url_for(year, month))
     if content is None:
         return "not published"
 
@@ -119,7 +121,7 @@ def ingest_month(s3, bucket: str, state: dict, year: int, month: int, today: str
         return "unchanged"
 
     # The file goes to S3 exactly as downloaded; cleaning happens later, in dbt.
-    s3.put_object(Bucket=bucket, Key=raw_key(year, month, today), Body=content, ContentType="text/csv")
+    s3.put_object(Bucket=bucket, Key=key_for(year, month, today), Body=content, ContentType="text/csv")
     state[month_id] = {
         "sha256": digest,
         "ingestion_date": today,
@@ -158,9 +160,10 @@ def parse_month(text: str) -> tuple[int, int]:
     return year, month
 
 
-def main() -> int:
+def months_to_check(description: str) -> list[tuple[int, int]]:
+    """Read --month or --since from the command line and return the months to check."""
     parser = argparse.ArgumentParser(
-        description=__doc__,
+        description=description,
         epilog=f"Without options, checks the last {LOOKBACK_MONTHS} calendar months.",
     )
     which = parser.add_mutually_exclusive_group()
@@ -173,31 +176,34 @@ def main() -> int:
     today = date.today()
     current = (today.year, today.month)
     if args.month:
-        months = [args.month]
-    elif args.since:
-        months = months_between(args.since, current)
-    else:
-        months = months_between(lookback_start(today), current)
+        return [args.month]
+    if args.since:
+        return months_between(args.since, current)
+    return months_between(lookback_start(today), current)
 
+
+def run(months: list[tuple[int, int]], state_key: str, url_for=month_url, key_for=raw_key) -> int:
+    """Check each month against the stored state and print a summary; returns the exit code."""
     # load_dotenv must run before boto3.client so that AWS_PROFILE from .env is used.
     load_dotenv()
     bucket = os.environ["LAKE_BUCKET"]
     s3 = boto3.client("s3")
+    today = date.today().isoformat()
 
     results = Counter()
     try:
-        state = read_state(s3, bucket)
+        state = read_state(s3, bucket, state_key)
         for year, month in months:
-            result = ingest_month(s3, bucket, state, year, month, today.isoformat())
+            result = ingest_month(s3, bucket, state, year, month, today, url_for, key_for)
             results[result] += 1
             print(f"{year}-{month:02d}: {result}")
             if result in ("new", "changed"):
                 # Saving right after each stored file means a failure later in the run cannot
                 # leave a stored month out of the state, which would store it again tomorrow
                 # under a new ingestion_date.
-                write_state(s3, bucket, state)
+                write_state(s3, bucket, state, state_key)
         # One last save records last_checked for the unchanged months.
-        write_state(s3, bucket, state)
+        write_state(s3, bucket, state, state_key)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
         print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
@@ -205,6 +211,10 @@ def main() -> int:
 
     print("summary:", ", ".join(f"{count} {result}" for result, count in results.most_common()) or "nothing to do")
     return 0
+
+
+def main() -> int:
+    return run(months_to_check(__doc__), STATE_KEY)
 
 
 if __name__ == "__main__":
