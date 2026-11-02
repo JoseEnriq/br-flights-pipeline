@@ -9,6 +9,8 @@ Catalog definitions and queries for the lake, run in the `br-flights` workgroup.
 | `repair_raw_vra.sql` | Registers the partition folders found in S3; run after each ingest that stores a new version |
 | `raw_anac_stats.sql` | Declares `raw_anac_stats` over `s3://.../raw/anac_stats/`, partitioned by `ingestion_date` |
 | `repair_raw_anac_stats.sql` | Registers new versions of the statistics file |
+| `raw_anac_punctuality.sql` | Declares `raw_anac_punctuality` over `s3://.../raw/anac_punctuality/`, ANAC's monthly delay percentages (Annex I) |
+| `repair_raw_anac_punctuality.sql` | Registers new months and versions of Annex I |
 | `queries/raw_checks.sql` | First checks on the raw data |
 | `queries/csv_vs_parquet.sql` | The same questions asked of the raw CSV and of the staged Parquet, to compare the data scanned |
 
