@@ -16,3 +16,6 @@ dbt/.user.yml
 
 # Private notes
 CLAUDE.md
+
+# Airflow task logs, written by the containers
+airflow/logs/
