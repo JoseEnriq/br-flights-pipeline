@@ -1,0 +1,82 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListTheLakeBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::br-flights-lake-joseenriq"
+    },
+    {
+      "Sid": "ReadAndWriteTheLakeLayers",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": [
+        "arn:aws:s3:::br-flights-lake-joseenriq/raw/*",
+        "arn:aws:s3:::br-flights-lake-joseenriq/processed/*",
+        "arn:aws:s3:::br-flights-lake-joseenriq/curated/*",
+        "arn:aws:s3:::br-flights-lake-joseenriq/_state/*",
+        "arn:aws:s3:::br-flights-lake-joseenriq/_athena-results/*"
+      ]
+    },
+    {
+      "Sid": "QueryInTheProjectWorkgroup",
+      "Effect": "Allow",
+      "Action": [
+        "athena:StartQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults",
+        "athena:StopQueryExecution",
+        "athena:GetWorkGroup"
+      ],
+      "Resource": "arn:aws:athena:us-east-1:*:workgroup/br-flights"
+    },
+    {
+      "Sid": "ReadTheDefaultCatalog",
+      "Effect": "Allow",
+      "Action": ["athena:GetDataCatalog"],
+      "Resource": "arn:aws:athena:us-east-1:*:datacatalog/AwsDataCatalog"
+    },
+    {
+      "Sid": "ManageTheProjectTables",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:CreateDatabase",
+        "glue:GetTable",
+        "glue:GetTables",
+        "glue:CreateTable",
+        "glue:UpdateTable",
+        "glue:DeleteTable",
+        "glue:GetTableVersions",
+        "glue:DeleteTableVersion",
+        "glue:BatchDeleteTableVersion",
+        "glue:GetPartition",
+        "glue:GetPartitions",
+        "glue:BatchGetPartition",
+        "glue:CreatePartition",
+        "glue:BatchCreatePartition",
+        "glue:UpdatePartition",
+        "glue:BatchUpdatePartition",
+        "glue:DeletePartition",
+        "glue:BatchDeletePartition"
+      ],
+      "Resource": [
+        "arn:aws:glue:us-east-1:*:catalog",
+        "arn:aws:glue:us-east-1:*:database/br_flights",
+        "arn:aws:glue:us-east-1:*:database/br_flights_processed",
+        "arn:aws:glue:us-east-1:*:database/br_flights_curated",
+        "arn:aws:glue:us-east-1:*:table/br_flights/*",
+        "arn:aws:glue:us-east-1:*:table/br_flights_processed/*",
+        "arn:aws:glue:us-east-1:*:table/br_flights_curated/*"
+      ]
+    }
+  ]
+}
