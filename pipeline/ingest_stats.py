@@ -84,7 +84,7 @@ def main() -> int:
         write_state(s3, bucket, state, STATE_KEY)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
-        print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
+        print("If the AWS SSO session expired, run aws sso login for the profile in AWS_PROFILE", file=sys.stderr)
         return 1
 
     print(f"statistics file: {result} ({state['rows']} rows, {state['bytes'] / 1e6:.1f} MB)")

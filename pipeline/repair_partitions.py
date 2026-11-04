@@ -42,7 +42,7 @@ def main() -> int:
             print(f"{table}: partitions registered")
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
-        print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
+        print("If the AWS SSO session expired, run aws sso login for the profile in AWS_PROFILE", file=sys.stderr)
         return 1
     return 0
 

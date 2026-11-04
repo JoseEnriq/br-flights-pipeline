@@ -212,7 +212,7 @@ def run(months: list[tuple[int, int]], state_key: str, url_for=month_url, key_fo
         write_state(s3, bucket, state, state_key)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
-        print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
+        print("If the AWS SSO session expired, run aws sso login for the profile in AWS_PROFILE", file=sys.stderr)
         return 1
 
     print("summary:", ", ".join(f"{count} {result}" for result, count in results.most_common()) or "nothing to do")

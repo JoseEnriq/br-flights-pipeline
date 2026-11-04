@@ -24,7 +24,7 @@ ALERT_TOPIC = "br-flights-alerts"
 
 
 def notify_failure(context) -> None:
-    """Email the owner through SNS when a task fails after its last retry."""
+    """Email the alert topic's subscribers through SNS when a task fails after its last retry."""
     ti = context["ti"]
     # The ARN is built at run time so the account number stays out of the repository
     account = boto3.client("sts").get_caller_identity()["Account"]
@@ -35,14 +35,14 @@ def notify_failure(context) -> None:
             f"Task {ti.task_id} of DAG {ti.dag_id} failed after {ti.try_number} tries.\n"
             f"Run: {ti.run_id}\n"
             f"Error: {str(context.get('exception'))[:1000]}\n"
-            "Logs: http://localhost:8080 on the home PC"
+            "Logs: Airflow web UI, port 8080"
         ),
     )
 
 
 @dag(
     dag_id="br_flights",
-    # 20h: a time the home PC is usually on; a missed day is covered by the
+    # 20h: when the machine running Airflow is likely to be on; a missed day is covered by the
     # next run, since every ingest checks the 13 latest months
     schedule=CronTriggerTimetable("0 20 * * *", timezone=TIMEZONE),
     start_date=pendulum.datetime(2026, 11, 1, tz=TIMEZONE),
