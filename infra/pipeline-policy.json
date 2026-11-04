@@ -44,6 +44,12 @@
       "Resource": "arn:aws:athena:us-east-1:*:datacatalog/AwsDataCatalog"
     },
     {
+      "Sid": "PublishFailureAlerts",
+      "Effect": "Allow",
+      "Action": ["sns:Publish"],
+      "Resource": "arn:aws:sns:us-east-1:*:br-flights-alerts"
+    },
+    {
       "Sid": "ManageTheProjectTables",
       "Effect": "Allow",
       "Action": [
