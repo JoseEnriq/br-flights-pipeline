@@ -1,4 +1,5 @@
 import argparse
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -12,6 +13,7 @@ from ingest import (
     months_between,
     parse_month,
     raw_key,
+    stored_line,
 )
 
 HEADER = b'"ICAO Empresa A\xc3\xa9rea";"N\xc3\xbamero Voo";"Situa\xc3\xa7\xc3\xa3o Voo"\r\n'
@@ -92,3 +94,12 @@ def test_lookback_start(today, expected):
 def test_lookback_window_has_the_configured_length():
     today = date(2026, 10, 28)
     assert len(months_between(lookback_start(today), (2026, 10))) == LOOKBACK_MONTHS
+
+
+def test_stored_line_counts_only_new_and_changed_files():
+    results = Counter({"unchanged": 11, "new": 2, "changed": 1, "not published": 3})
+    assert stored_line(results) == "stored=3"
+
+
+def test_stored_line_is_zero_when_nothing_was_stored():
+    assert stored_line(Counter({"unchanged": 12})) == "stored=0"

@@ -160,6 +160,12 @@ def parse_month(text: str) -> tuple[int, int]:
     return year, month
 
 
+def stored_line(results: Counter) -> str:
+    """Return the line every ingest prints last, with how many files it stored."""
+    # The Airflow DAG reads this line to decide whether dbt has anything to rebuild.
+    return f"stored={results['new'] + results['changed']}"
+
+
 def months_to_check(description: str) -> list[tuple[int, int]]:
     """Read --month or --since from the command line and return the months to check."""
     parser = argparse.ArgumentParser(
@@ -206,10 +212,11 @@ def run(months: list[tuple[int, int]], state_key: str, url_for=month_url, key_fo
         write_state(s3, bucket, state, state_key)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
-        print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
+        print("If the AWS SSO session expired, run aws sso login for the profile in AWS_PROFILE", file=sys.stderr)
         return 1
 
     print("summary:", ", ".join(f"{count} {result}" for result, count in results.most_common()) or "nothing to do")
+    print(stored_line(results))
     return 0
 
 

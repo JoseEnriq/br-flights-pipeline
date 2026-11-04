@@ -11,7 +11,7 @@ x-airflow-common: &airflow-common
     dockerfile: airflow/Dockerfile
   image: br-flights-airflow:3.3.2
   # LAKE_BUCKET comes from the project's .env; AWS_PROFILE below replaces the
-  # one in that file, which is the owner's daily login and expires every day
+  # one in that file, an interactive SSO login that expires every day
   env_file:
     - ../.env
   environment: &airflow-common-env
@@ -57,7 +57,7 @@ services:
     <<: *airflow-common
     command: api-server
     ports:
-      # bound to this PC only, not to the local network
+      # bound to this machine only, not to the local network
       - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]

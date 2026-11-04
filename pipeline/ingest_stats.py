@@ -9,6 +9,7 @@ import io
 import os
 import sys
 import urllib.request
+from collections import Counter
 from datetime import date
 from urllib.parse import quote
 
@@ -17,7 +18,7 @@ from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
 
-from ingest import count_rows, data_hash, read_state, write_state
+from ingest import count_rows, data_hash, read_state, stored_line, write_state
 
 # Kept readable on purpose; quote() encodes the spaces and accents.
 STATS_URL = quote(
@@ -83,10 +84,11 @@ def main() -> int:
         write_state(s3, bucket, state, STATE_KEY)
     except (BotoCoreError, ClientError) as error:
         print(f"AWS error: {error}", file=sys.stderr)
-        print("If the SSO session expired, run: aws sso login --profile pessoal", file=sys.stderr)
+        print("If the AWS SSO session expired, run aws sso login for the profile in AWS_PROFILE", file=sys.stderr)
         return 1
 
     print(f"statistics file: {result} ({state['rows']} rows, {state['bytes'] / 1e6:.1f} MB)")
+    print(stored_line(Counter([result])))
     return 0
 
 
