@@ -14,16 +14,21 @@
     Each month is built from its latest ingested version, and only when that
     version is not in the table yet. The versions go into the query as literal
     filters because Athena does not prune partitions through a subquery.
+    Quarantined months are skipped, and stg_flights_max_months caps how many
+    months one run builds, oldest first; the next run picks up the rest.
 -#}
 
 {%- set raw = source('raw', 'raw_vra') -%}
 {%- set versions = [] -%}
+{%- set pending = [] -%}
+{%- set max_months = var('stg_flights_max_months') | int -%}
 
 {%- if execute -%}
     {%- set latest_sql -%}
         select "month", max(ingestion_date) as ingestion_date
         from "{{ raw.schema }}"."{{ raw.identifier }}$partitions"
         group by "month"
+        order by "month"
     {%- endset -%}
 
     {%- set built = {} -%}
@@ -39,10 +44,16 @@
     {%- endif -%}
 
     {%- for row in run_query(latest_sql) -%}
-        {%- if built.get(row[0]) != row[1] -%}
-            {%- do versions.append(row) -%}
+        {%- if built.get(row[0]) != row[1] and row[0] not in var('quarantined_months') -%}
+            {%- do pending.append(row) -%}
         {%- endif -%}
     {%- endfor -%}
+
+    {%- set versions = pending if max_months == 0 else pending[:max_months] -%}
+    {%- if is_incremental() -%}
+        {%- do log('stg_flights: building ' ~ versions | length ~ ' months, '
+                   ~ (pending | length - versions | length) ~ ' left for later runs', info=True) -%}
+    {%- endif -%}
 {%- endif %}
 
 with source as (
@@ -81,6 +92,8 @@ cleaned as (
 
 )
 
--- the source repeats a few rows in full (6 in September 2026)
+-- the source repeats a few rows in full (6 in September 2026); records with
+-- no departure time at all, 18 cancellations in 2019, cannot be placed in time
 select distinct *
 from cleaned
+where scheduled_departure is not null or actual_departure is not null

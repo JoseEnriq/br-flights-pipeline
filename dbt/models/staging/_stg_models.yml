@@ -23,12 +23,15 @@ models:
         description: >
           Route type (Código Tipo Linha). Assumed meaning, since ANAC publishes
           no dictionary: N domestic, C domestic cargo, I international,
-          G international cargo; L shows up in 2018 and 2019.
+          G international cargo. Rarer codes, kept as published: L, R and E
+          until January 2020; X from April 2020 to October 2021, the same
+          months as the NÃO INFORMADO status; NA since December 2020, mostly
+          from April to July 2025.
         data_tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['N', 'C', 'I', 'G', 'L']
+                values: ['N', 'C', 'I', 'G', 'L', 'R', 'E', 'X', 'NA']
       - name: origin_icao
         description: ICAO code of the origin airport (ICAO Aeródromo Origem).
         data_tests:
@@ -46,14 +49,20 @@ models:
       - name: actual_arrival
         description: Actual arrival (Chegada Real).
       - name: flight_status
-        description: Flight status as published (Situação Voo).
+        description: >
+          Flight status as published (Situação Voo). NÃO INFORMADO appears
+          from April 2020 to October 2021, always on scheduled flights with
+          no actual times.
         data_tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['REALIZADO', 'CANCELADO']
+                values: ['REALIZADO', 'CANCELADO', 'NÃO INFORMADO']
       - name: justification_code
-        description: Delay or cancellation reason (Código Justificativa); empty since 2021.
+        description: >
+          Delay or cancellation reason (Código Justificativa). Filled until
+          January 2020, for every cancellation and about a third of the
+          operated flights; empty since April 2020.
       - name: ingestion_date
         description: Day the source version of this month was loaded into the raw layer.
         data_tests:

@@ -1,4 +1,10 @@
 -- Returns the flights whose times contradict their status or each other.
+-- ANAC publishes 4 such flights since 2019: two AZA flights of October 2021
+-- operated with no actual arrival, and two flights of February 2019 scheduled
+-- to arrive before they leave. A few are source errors to list; many would
+-- mean a format change.
+{{ config(warn_if='>0', error_if='>10') }}
+
 select
     airline_icao,
     flight_number,
