@@ -17,6 +17,25 @@ models:
       +schema: curated
 
 vars:
-  # the backfill starts in 2019; Athena caps sequence() at 10,000 days
-  calendar_start: "2019-01-01"
+  # the backfill starts in 2019, but the October 2019 file holds a flight dated
+  # October 2017; Athena caps sequence() at 10,000 days
+  calendar_start: "2017-01-01"
   calendar_end: "2030-12-31"
+  # ANAC published these months with every date and status replaced by the text
+  # "Microsoft.SqlServer.Dts.Pipeline.BlobColumn": they stay in raw as published,
+  # and staging skips them
+  quarantined_months: ["2020-02", "2020-03"]
+  # Months of ANAC's Annex I that cannot be the reference for the flight model;
+  # they stay in raw as published. Details in docs/decisions.md
+  quarantined_punctuality:
+    # the file published as January 2019 is byte for byte the one of February 2026
+    - {from: "2019-01", to: "2019-01"}
+    # each flight and route repeated many times with conflicting values
+    # (2.4 million rows for 26 thousand routes in April 2023)
+    - {from: "2020-04", to: "2023-12"}
+    # counts and cancellations match, delays only on about half of the routes:
+    # computed some other way, before ANAC regenerated the files in May 2026
+    - {from: "2024-01", to: "2025-09"}
+  # Most months stg_flights builds in one run; 0 means no limit. The backfill sets
+  # it so that no single query reads past the workgroup's 1 GB cutoff
+  stg_flights_max_months: 0

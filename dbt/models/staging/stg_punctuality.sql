@@ -11,7 +11,8 @@
 {#-
     The latest ingested version of each month, passed as literal filters
     because Athena does not prune partitions through a subquery. A full
-    rebuild: all months together are a few MB.
+    rebuild: the usable months together are a few MB. Quarantined months
+    stay in raw as published.
 -#}
 
 {%- set raw = source('raw', 'raw_anac_punctuality') -%}
@@ -24,7 +25,13 @@
         group by "month"
     {%- endset -%}
     {%- for row in run_query(latest_sql) -%}
-        {%- do versions.append(row) -%}
+        {%- set quarantined = [] -%}
+        {%- for range in var('quarantined_punctuality') if range['from'] <= row[0] <= range['to'] -%}
+            {%- do quarantined.append(range) -%}
+        {%- endfor -%}
+        {%- if not quarantined -%}
+            {%- do versions.append(row) -%}
+        {%- endif -%}
     {%- endfor -%}
 {%- endif %}
 
