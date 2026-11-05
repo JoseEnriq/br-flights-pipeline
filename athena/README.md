@@ -13,6 +13,7 @@ Catalog definitions and queries for the lake, run in the `br-flights` workgroup.
 | `repair_raw_anac_punctuality.sql` | Registers new months and versions of Annex I |
 | `queries/raw_checks.sql` | First checks on the raw data |
 | `queries/csv_vs_parquet.sql` | The same questions asked of the raw CSV and of the staged Parquet, to compare the data scanned |
+| `queries/monthly_traffic.sql` | Flights by group, cancellations and delays by month since 2019, where the pandemic shows |
 
 Run them in this order, one statement at a time.
 
