@@ -20,6 +20,9 @@ TIMEZONE = "America/Sao_Paulo"
 
 INGESTS = ["ingest_vra", "ingest_punctuality", "ingest_stats"]
 
+# First month of the history kept in the lake, checked in full once a month
+HISTORY_START = "2019-01"
+
 ALERT_TOPIC = "br-flights-alerts"
 
 
@@ -49,12 +52,26 @@ def notify_failure(context) -> None:
     catchup=False,
     max_active_runs=1,
     default_args={"retries": 2, "retry_delay": timedelta(minutes=10), "on_failure_callback": notify_failure},
-    params={"force_stats": Param(False, type="boolean", description="Check the statistics file even if today is not Sunday")},
+    params={
+        "force_stats": Param(False, type="boolean", description="Check the statistics file even if today is not Sunday"),
+        "full_check": Param(False, type="boolean", description=f"Check every flight file since {HISTORY_START}, not only the latest 13"),
+    },
     tags=["br-flights"],
     doc_md=__doc__,
 )
 def br_flights():
-    ingest_vra = BashOperator(task_id="ingest_vra", bash_command=f"cd {PROJECT} && {PYTHON} pipeline/ingest.py")
+    # ANAC also regenerates old months now and then (January 2019 in May 2026), which
+    # the 13-month window never sees; on the 1st, the flight ingest checks the whole
+    # history. Only files whose flights changed are stored, so the cost is the download.
+    # The delay percentages stay on the window: their history is 2.8 GB, most of it in
+    # months the model does not use.
+    @task
+    def months_option(params=None) -> str:
+        full_check = params["full_check"] or pendulum.now(TIMEZONE).day == 1
+        return f"--since {HISTORY_START}" if full_check else ""
+
+    option = "{{ ti.xcom_pull(task_ids='months_option') }}"
+    ingest_vra = BashOperator(task_id="ingest_vra", bash_command=f"cd {PROJECT} && {PYTHON} pipeline/ingest.py {option}")
     ingest_punctuality = BashOperator(
         task_id="ingest_punctuality", bash_command=f"cd {PROJECT} && {PYTHON} pipeline/ingest_punctuality.py"
     )
@@ -86,6 +103,7 @@ def br_flights():
         bash_command=f"cd {PROJECT}/dbt && {DBT} build --profiles-dir . --target-path /tmp/dbt/target --log-path /tmp/dbt/logs",
     )
 
+    months_option() >> ingest_vra
     is_stats_day() >> ingest_stats
     [ingest_vra, ingest_punctuality, ingest_stats] >> anything_stored() >> repair_partitions >> dbt_build
 
