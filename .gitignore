@@ -19,3 +19,9 @@ CLAUDE.md
 
 # Airflow task logs, written by the containers
 airflow/logs/
+
+# Terraform providers and saved plans; the state lives in S3
+infra/.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.backup
