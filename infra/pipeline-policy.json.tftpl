@@ -5,7 +5,7 @@
       "Sid": "ListTheLakeBucket",
       "Effect": "Allow",
       "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
-      "Resource": "arn:aws:s3:::br-flights-lake-joseenriq"
+      "Resource": "arn:aws:s3:::${bucket}"
     },
     {
       "Sid": "ReadAndWriteTheLakeLayers",
@@ -18,11 +18,11 @@
         "s3:ListMultipartUploadParts"
       ],
       "Resource": [
-        "arn:aws:s3:::br-flights-lake-joseenriq/raw/*",
-        "arn:aws:s3:::br-flights-lake-joseenriq/processed/*",
-        "arn:aws:s3:::br-flights-lake-joseenriq/curated/*",
-        "arn:aws:s3:::br-flights-lake-joseenriq/_state/*",
-        "arn:aws:s3:::br-flights-lake-joseenriq/_athena-results/*"
+        "arn:aws:s3:::${bucket}/raw/*",
+        "arn:aws:s3:::${bucket}/processed/*",
+        "arn:aws:s3:::${bucket}/curated/*",
+        "arn:aws:s3:::${bucket}/_state/*",
+        "arn:aws:s3:::${bucket}/_athena-results/*"
       ]
     },
     {
@@ -35,19 +35,19 @@
         "athena:StopQueryExecution",
         "athena:GetWorkGroup"
       ],
-      "Resource": "arn:aws:athena:us-east-1:*:workgroup/br-flights"
+      "Resource": "arn:aws:athena:${region}:${account_id}:workgroup/br-flights"
     },
     {
       "Sid": "ReadTheDefaultCatalog",
       "Effect": "Allow",
       "Action": ["athena:GetDataCatalog"],
-      "Resource": "arn:aws:athena:us-east-1:*:datacatalog/AwsDataCatalog"
+      "Resource": "arn:aws:athena:${region}:${account_id}:datacatalog/AwsDataCatalog"
     },
     {
       "Sid": "PublishFailureAlerts",
       "Effect": "Allow",
       "Action": ["sns:Publish"],
-      "Resource": "arn:aws:sns:us-east-1:*:br-flights-alerts"
+      "Resource": "arn:aws:sns:${region}:${account_id}:br-flights-alerts"
     },
     {
       "Sid": "ManageTheProjectTables",
@@ -75,13 +75,13 @@
         "glue:BatchDeletePartition"
       ],
       "Resource": [
-        "arn:aws:glue:us-east-1:*:catalog",
-        "arn:aws:glue:us-east-1:*:database/br_flights",
-        "arn:aws:glue:us-east-1:*:database/br_flights_processed",
-        "arn:aws:glue:us-east-1:*:database/br_flights_curated",
-        "arn:aws:glue:us-east-1:*:table/br_flights/*",
-        "arn:aws:glue:us-east-1:*:table/br_flights_processed/*",
-        "arn:aws:glue:us-east-1:*:table/br_flights_curated/*"
+        "arn:aws:glue:${region}:${account_id}:catalog",
+        "arn:aws:glue:${region}:${account_id}:database/br_flights",
+        "arn:aws:glue:${region}:${account_id}:database/br_flights_processed",
+        "arn:aws:glue:${region}:${account_id}:database/br_flights_curated",
+        "arn:aws:glue:${region}:${account_id}:table/br_flights/*",
+        "arn:aws:glue:${region}:${account_id}:table/br_flights_processed/*",
+        "arn:aws:glue:${region}:${account_id}:table/br_flights_curated/*"
       ]
     }
   ]
