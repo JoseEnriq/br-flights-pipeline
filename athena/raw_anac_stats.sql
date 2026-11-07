@@ -48,5 +48,5 @@ WITH SERDEPROPERTIES (
     'quoteChar'     = '\"'
 )
 STORED AS TEXTFILE
-LOCATION 's3://br-flights-lake-joseenriq/raw/anac_stats/'
+LOCATION 's3://${lake_bucket}/raw/anac_stats/'
 TBLPROPERTIES ('skip.header.line.count' = '2');

@@ -21,5 +21,5 @@ WITH SERDEPROPERTIES (
     'quoteChar'     = '\"'
 )
 STORED AS TEXTFILE
-LOCATION 's3://br-flights-lake-joseenriq/raw/anac_punctuality/'
+LOCATION 's3://${lake_bucket}/raw/anac_punctuality/'
 TBLPROPERTIES ('skip.header.line.count' = '2');
