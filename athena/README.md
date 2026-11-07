@@ -4,18 +4,14 @@ Catalog definitions and queries for the lake, run in the `br-flights` workgroup.
 
 | File | What it does |
 |---|---|
-| `create_database.sql` | Creates the `br_flights` Glue database, shared by every layer |
 | `raw_vra.sql` | Declares `raw_vra` over `s3://.../raw/vra/`, partitioned by `month` and `ingestion_date` |
-| `repair_raw_vra.sql` | Registers the partition folders found in S3; run after each ingest that stores a new version |
 | `raw_anac_stats.sql` | Declares `raw_anac_stats` over `s3://.../raw/anac_stats/`, partitioned by `ingestion_date` |
-| `repair_raw_anac_stats.sql` | Registers new versions of the statistics file |
 | `raw_anac_punctuality.sql` | Declares `raw_anac_punctuality` over `s3://.../raw/anac_punctuality/`, ANAC's monthly delay percentages (Annex I) |
-| `repair_raw_anac_punctuality.sql` | Registers new months and versions of Annex I |
 | `queries/raw_checks.sql` | First checks on the raw data |
 | `queries/csv_vs_parquet.sql` | The same questions asked of the raw CSV and of the staged Parquet, to compare the data scanned |
 | `queries/monthly_traffic.sql` | Flights by group, cancellations and delays by month since 2019, where the pandemic shows |
 
-Run them in this order, one statement at a time.
+The Glue databases come from Terraform (`infra/catalog.tf`). The three `raw_*.sql` files write the bucket as `${lake_bucket}`: `pipeline/create_raw_tables.py` fills it from `LAKE_BUCKET`, creates the tables and registers the partitions already in S3, and `pipeline/repair_partitions.py` registers new ones after each ingest (the Airflow DAG runs it). To run a file in the console instead, replace `${lake_bucket}` with the bucket name first.
 
 ## Why the table looks like this
 
