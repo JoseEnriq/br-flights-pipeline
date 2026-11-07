@@ -1,0 +1,58 @@
+name: ci
+
+# Checks that need no AWS access: the unit tests, the dbt project and the
+# Terraform code. No credential is stored in GitHub, and nothing here reads or
+# writes the lake; the daily run itself is Airflow's job.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run the unit tests
+        run: pytest
+
+      # parse renders every model and test without connecting to Athena; the
+      # placeholder only fills the env_var() calls for the bucket name
+      - name: Parse the dbt project
+        working-directory: dbt
+        env:
+          LAKE_BUCKET: ci-placeholder
+        run: dbt parse --profiles-dir .
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.0"
+
+      - name: Check the formatting
+        run: terraform fmt -check -recursive
+
+      # without the backend, init only downloads the provider pinned in the
+      # lock file and never touches the shared state
+      - name: Initialize without the remote state
+        run: terraform init -backend=false -input=false
+
+      - name: Validate the configuration
+        run: terraform validate
