@@ -12,17 +12,9 @@ A ANAC publica um arquivo de voos por mês, cerca de quatro semanas depois do fi
 
 ## Como funciona
 
-```
-ANAC ──► ingest (hash dos voos, uma pasta no S3 por versão real) ──► raw em CSV
-                                                                       │  Glue + Athena
-         dbt: staging em Parquet, incremental por mês ◄────────────────┘
-          └► fato de voos, dimensões de companhia, aeroporto e data, pontualidade, conciliação com a ANAC
+![Arquitetura: o Airflow roda o ingest e o dbt numa máquina local; os dados ficam no S3 e são consultados pelo Athena](docs/architecture.png)
 
-O Airflow (Docker) roda tudo todo dia às 20h e manda e-mail pelo SNS quando uma tarefa falha.
-O Terraform guarda os recursos da AWS; o GitHub Actions roda testes e checagens estáticas.
-```
-
-Um dia sem novidade termina nos downloads, sem consulta no Athena. Quando um arquivo muda, a partição dele é registrada e o dbt reconstrói as camadas acima.
+O dbt transforma o CSV da raw em Parquet no staging, incremental por mês, e depois no fato de voos, nas dimensões de companhia, aeroporto e data, nas métricas de pontualidade e na conciliação com a ANAC. Um dia sem novidade termina nos downloads, sem consulta no Athena. Quando um arquivo muda, a partição dele é registrada e o dbt reconstrói as camadas acima.
 
 ## Principais decisões
 

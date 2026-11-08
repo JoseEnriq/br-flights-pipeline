@@ -12,17 +12,9 @@ ANAC releases one flight file per month, about four weeks after the month ends, 
 
 ## How it works
 
-```
-ANAC ──► ingest (hash of the flights, one S3 folder per real version) ──► raw CSV
-                                                                            │  Glue + Athena
-         dbt: staging in Parquet, incremental by month ◄────────────────────┘
-          └► flight fact, airline, airport and date dimensions, punctuality, reconciliation with ANAC
+![Architecture: Airflow runs the ingest and dbt on a local machine; data lives in S3 and is queried with Athena](docs/architecture.png)
 
-Airflow (Docker) runs it daily at 20:00 and emails through SNS when a task fails.
-Terraform holds the AWS resources; GitHub Actions runs the tests and static checks.
-```
-
-A day without news ends after the downloads, with no Athena query. When a file changes, its partition is registered and dbt rebuilds the layers above it.
+dbt turns the raw CSV into Parquet staging, incremental by month, and then into the flight fact, the airline, airport and date dimensions, punctuality metrics and the reconciliation with ANAC. A day without news ends after the downloads, with no Athena query. When a file changes, its partition is registered and dbt rebuilds the layers above it.
 
 ## Key decisions
 
