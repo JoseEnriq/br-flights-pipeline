@@ -16,7 +16,7 @@ from diagrams.onprem.iac import Terraform
 from diagrams.onprem.workflow import Airflow
 from diagrams.programming.language import Python
 
-GRAPH = {"fontsize": "20", "pad": "0.4", "nodesep": "0.6", "ranksep": "1.2", "splines": "spline"}
+GRAPH = {"fontsize": "20", "pad": "0.4", "nodesep": "0.6", "ranksep": "1.2", "splines": "spline", "compound": "true"}
 
 with Diagram("br-flights-pipeline", filename="docs/architecture", show=False, direction="LR", graph_attr=GRAPH):
     anac = Storage("ANAC open data\nmonthly flight files")
@@ -53,3 +53,6 @@ with Diagram("br-flights-pipeline", filename="docs/architecture", show=False, di
     athena - Edge(style="dotted") - catalog
     dbt >> Edge(label="SQL on Athena") >> processed >> curated
     airflow >> Edge(label="task failed", color="firebrick") >> alerts >> email
+
+    # Terraform creates the AWS resources once; the arrow ends at the AWS box
+    terraform >> Edge(label="creates all AWS resources", style="dashed", lhead="cluster_AWS, us-east-1") >> user
