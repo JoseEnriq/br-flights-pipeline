@@ -39,8 +39,12 @@ with Diagram("br-flights-pipeline", filename="docs/architecture", show=False, di
     email = SimpleNotificationServiceSnsEmailNotification("failure email")
 
     with Cluster("GitHub repository"):
-        Terraform("Terraform\nAWS resources")
-        GithubActions("GitHub Actions\ntests and checks")
+        terraform = Terraform("Terraform\nAWS resources")
+        checks = GithubActions("GitHub Actions\ntests and checks")
+
+    # No data flows through the repository; the invisible edge only keeps it
+    # next to the local machine instead of alone in a corner
+    airflow >> Edge(style="invis") >> [terraform, checks]
 
     anac >> Edge(label="new or changed files") >> ingest >> raw
     airflow >> [ingest, dbt]
