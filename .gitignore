@@ -25,3 +25,5 @@ infra/.terraform/
 *.tfplan
 *.tfstate
 *.tfstate.backup
+# Local overrides, such as the local state for a first run in a new account
+*_override.tf
