@@ -42,11 +42,12 @@ Streaming, since ANAC publishes files, not events; Spark and a data warehouse, w
 
 ## Reproduce it
 
-Requires Python 3.12, Terraform 1.10+, an AWS account and, for the daily run, Docker. Copy `.env.example` to `.env` and set `LAKE_BUCKET` to a bucket name of your own, which `infra/` also needs (`lake_bucket` and the backend block).
+Requires Python 3.12, Terraform 1.10+, an AWS account and, for the daily run, Docker. Copy `.env.example` to `.env` and fill it in. A new account has no bucket for the Terraform state yet: [infra/README.md](infra/README.md) has the first run.
 
 ```bash
 pip install -r requirements-dev.txt
-cd infra && terraform init && terraform apply && cd ..   # a new account starts on local state
+python -m pytest                                          # no AWS account needed
+cd infra && terraform init && terraform apply && cd ..    # first run: infra/README.md
 python pipeline/create_raw_tables.py
 python pipeline/ingest.py --since 2019-01 && python pipeline/ingest_punctuality.py --since 2019-01 && python pipeline/ingest_stats.py
 cd dbt && dotenv -f ../.env run -- dbt build && cd ..
