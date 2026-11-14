@@ -42,11 +42,12 @@ Streaming, porque a ANAC publica arquivos, e não eventos; Spark e um data wareh
 
 ## Como reproduzir
 
-Requer Python 3.12, Terraform 1.10+, uma conta AWS e, para a execução diária, Docker. Copie o `.env.example` para `.env` e defina em `LAKE_BUCKET` um nome de bucket seu, que o `infra/` também precisa (`lake_bucket` e o bloco do backend).
+Requer Python 3.12, Terraform 1.10+, uma conta AWS e, para a execução diária, Docker. Copie o `.env.example` para `.env` e preencha. Uma conta nova ainda não tem o bucket do estado do Terraform: o [infra/README.md](infra/README.md) mostra a primeira execução.
 
 ```bash
 pip install -r requirements-dev.txt
-cd infra && terraform init && terraform apply && cd ..   # numa conta nova, começa com estado local
+python -m pytest                                          # não precisa de conta AWS
+cd infra && terraform init && terraform apply && cd ..    # primeira vez: infra/README.md
 python pipeline/create_raw_tables.py
 python pipeline/ingest.py --since 2019-01 && python pipeline/ingest_punctuality.py --since 2019-01 && python pipeline/ingest_stats.py
 cd dbt && dotenv -f ../.env run -- dbt build && cd ..
