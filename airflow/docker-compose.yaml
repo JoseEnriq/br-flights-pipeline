@@ -30,8 +30,9 @@ x-airflow-common: &airflow-common
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ..:/opt/br-flights
-    # only the pipeline user's key, read-only; the SSO login cache stays out
-    - ${USERPROFILE}/.aws/credentials:/home/airflow/.aws/credentials:ro
+    # only the pipeline user's key, read-only; the SSO login cache stays out.
+    # USERPROFILE is the home folder on Windows, HOME on Linux and macOS
+    - ${USERPROFILE:-${HOME}}/.aws/credentials:/home/airflow/.aws/credentials:ro
   user: "50000:0"
   depends_on: &airflow-common-depends-on
     postgres:
